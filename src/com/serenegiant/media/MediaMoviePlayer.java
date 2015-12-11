@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -45,6 +46,8 @@ public class MediaMoviePlayer {
 
 	private final IFrameCallback mCallback;
 	private final boolean mAudioEnabled;
+	private AtomicBoolean mStopCalled;
+	Thread mVideoThread = null, mAudioThread = null;
 
 	public MediaMoviePlayer(final Surface outputSurface, final IFrameCallback callback, final boolean audio_enable) throws NullPointerException {
     	if (DEBUG) Log.v(TAG, "Constructor:");
@@ -62,6 +65,8 @@ public class MediaMoviePlayer {
 			} catch (final InterruptedException e) {
 			}
     	}
+    	
+    	mStopCalled = new AtomicBoolean(false);
     }
 
     public final int getWidth() {
@@ -340,6 +345,10 @@ public class MediaMoviePlayer {
 			        if (!mVideoOutputDone) {
 						handleOutputVideo(mCallback);
 			        }
+			        if(mStopCalled.get()){
+			        	Log.d(TAG, "VideoTask Stop Called. ");
+			        	break;
+			        }
 				} catch (final Exception e) {
 					Log.e(TAG, "VideoTask:", e);
 					break;
@@ -369,6 +378,10 @@ public class MediaMoviePlayer {
 					if (!mAudioOutputDone) {
 						handleOutputAudio(mCallback);
 					}
+					if(mStopCalled.get()){
+			        	Log.d(TAG, "AudioTask Stop Called. ");
+			        	break;
+			        }
 				} catch (final Exception e) {
 					Log.e(TAG, "VideoTask:", e);
 					break;
@@ -653,6 +666,7 @@ public class MediaMoviePlayer {
 
 	private final void handleStart() {
     	if (DEBUG) Log.v(TAG, "handleStart:");
+    	mStopCalled.set(false);
 		synchronized (mSync) {
 			if (mState != STATE_PREPARED)
 				throw new RuntimeException("invalid state:" + mState);
@@ -663,7 +677,6 @@ public class MediaMoviePlayer {
         }
         previousVideoPresentationTimeUs = previousAudioPresentationTimeUs = -1;
 		mVideoInputDone = mVideoOutputDone = true;
-		Thread videoThread = null, audioThread = null;
 		if (mVideoTrackIndex >= 0) {
 			final MediaCodec codec = internal_start_video(mVideoMediaExtractor, mVideoTrackIndex);
 			if (codec != null) {
@@ -673,7 +686,7 @@ public class MediaMoviePlayer {
 		        mVideoOutputBuffers = codec.getOutputBuffers();
 			}
 			mVideoInputDone = mVideoOutputDone = false;
-			videoThread = new Thread(mVideoTask, "VideoTask");
+			mVideoThread = new Thread(mVideoTask, "VideoTask");
 		}
 		mAudioInputDone = mAudioOutputDone = true;
 		if (mAudioTrackIndex >= 0) {
@@ -685,10 +698,10 @@ public class MediaMoviePlayer {
 		        mAudioOutputBuffers = codec.getOutputBuffers();
 			}
 			mAudioInputDone = mAudioOutputDone = false;
-	        audioThread = new Thread(mAudioTask, "AudioTask");
+	        mAudioThread = new Thread(mAudioTask, "AudioTask");
 		}
-		if (videoThread != null) videoThread.start();
-		if (audioThread != null) audioThread.start();
+		if (mVideoThread != null) mVideoThread.start();
+		if (mAudioThread != null) mAudioThread.start();
 	}
 
 	/**
@@ -939,15 +952,18 @@ public class MediaMoviePlayer {
 	 */
 	protected boolean internal_write_audio(final ByteBuffer buffer, final int offset, final int size, final long presentationTimeUs) {
 //		if (DEBUG) Log.d(TAG, "internal_write_audio");
-        if (mAudioOutTempBuf.length < size) {
-        	mAudioOutTempBuf = new byte[size];
-        }
-        buffer.position(offset);
-        buffer.get(mAudioOutTempBuf, 0, size);
-        buffer.clear();
-        if (mAudioTrack != null)
-        	mAudioTrack.write(mAudioOutTempBuf, 0, size);
-        return true;
+		if(mAudioOutTempBuf != null){
+			if (mAudioOutTempBuf.length < size) {
+	        	mAudioOutTempBuf = new byte[size];
+	        }
+	        buffer.position(offset);
+	        buffer.get(mAudioOutTempBuf, 0, size);
+	        buffer.clear();
+	        if (mAudioTrack != null)
+	        	mAudioTrack.write(mAudioOutTempBuf, 0, size);
+	        return true;
+		}
+        return false;
 	}
 
 	/**
@@ -978,7 +994,9 @@ public class MediaMoviePlayer {
 
 	private final void handleStop() {
     	if (DEBUG) Log.v(TAG, "handleStop:");
+    	mStopCalled.set(true);
     	synchronized (mVideoTask) {
+    		
     		internal_stop_video();
     		mVideoTrackIndex = -1;
     	}
@@ -1019,18 +1037,55 @@ public class MediaMoviePlayer {
 	}
 
 	protected void internal_stop_video() {
-		if (DEBUG) Log.v(TAG, "internal_stop_video:");
+		if (DEBUG) Log.v(TAG, "internal_stop_video :");
+		boolean waitEnabled = false;
+		if(mVideoThread != null){
+			if(mVideoThread.isAlive()){
+				if (DEBUG) Log.v(TAG, "internal_stop_video +");
+				waitEnabled = true;
+			}
+			while(mVideoThread.isAlive()){
+				try {
+					Thread.sleep(10);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+		
+		if(waitEnabled){
+			Log.d(TAG, "internal_stop_video -");
+		}
 	}
 
 	protected void internal_stop_audio() {
 		if (DEBUG) Log.v(TAG, "internal_stop_audio:");
-    	if (mAudioTrack != null) {
+		boolean waitEnabled = false;
+		if(mAudioThread != null){
+			if(mAudioThread.isAlive()){
+				if (DEBUG) Log.v(TAG, "internal_stop_audio +");
+				waitEnabled = true;
+			}
+			while(mAudioThread.isAlive()){
+				try {
+					Thread.sleep(10);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+		if (mAudioTrack != null) {
     		if (mAudioTrack.getState() != AudioTrack.STATE_UNINITIALIZED)
     			mAudioTrack.stop();
     		mAudioTrack.release();
     		mAudioTrack = null;
     	}
 		mAudioOutTempBuf = null;
+		if(waitEnabled){
+			Log.d(TAG, "internal_stop_audio -");
+		}
 	}
 
 	private final void handlePause() {
