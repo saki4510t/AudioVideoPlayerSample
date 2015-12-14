@@ -811,9 +811,9 @@ public class MediaMoviePlayer {
                 	break;
                 }
         	}
-    		synchronized (mSync) {
+    		synchronized (mVideoTask) {
     			mVideoInputDone = true;
-    			mSync.notifyAll();
+    			mVideoTask.notifyAll();
     		}
         }
 	}
@@ -849,9 +849,9 @@ public class MediaMoviePlayer {
 				mVideoMediaCodec.releaseOutputBuffer(decoderStatus, doRender);
 				if ((mVideoBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
 					if (DEBUG) Log.d(TAG, "video:output EOS");
-					synchronized (mSync) {
+					synchronized (mVideoTask) {
 						mVideoOutputDone = true;
-						mSync.notifyAll();
+						mVideoTask.notifyAll();
 					}
 				}
 			}
@@ -889,9 +889,9 @@ public class MediaMoviePlayer {
                 	break;
                 }
         	}
-    		synchronized (mSync) {
+    		synchronized (mAudioTask) {
     			mAudioInputDone = true;
-    			mSync.notifyAll();
+    			mAudioTask.notifyAll();
     		}
        }
 	}
@@ -921,9 +921,9 @@ public class MediaMoviePlayer {
 				mAudioMediaCodec.releaseOutputBuffer(decoderStatus, false);
 				if ((mAudioBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
 					if (DEBUG) Log.d(TAG, "audio:output EOS");
-					synchronized (mSync) {
+					synchronized (mAudioTask) {
 						mAudioOutputDone = true;
-						mSync.notifyAll();
+						mAudioTask.notifyAll();
 					}
 				}
 			}
@@ -981,9 +981,11 @@ public class MediaMoviePlayer {
     	synchronized (mVideoTask) {
     		if (mVideoTrackIndex >= 0) {
         		mVideoOutputDone = true;
+        		for ( ; !mVideoInputDone ;)
         		try {
         			mVideoTask.wait();
 				} catch (final InterruptedException e) {
+					break;
 				}
         		internal_stop_video();
         		mVideoTrackIndex = -1;
@@ -993,9 +995,11 @@ public class MediaMoviePlayer {
     	synchronized (mAudioTask) {
     		if (mAudioTrackIndex >= 0) {
         		mAudioOutputDone = true;
+        		for ( ; !mAudioInputDone ;)
         		try {
         			mAudioTask.wait();
 				} catch (final InterruptedException e) {
+					break;
 				}
         		internal_stop_audio();
         		mAudioTrackIndex = -1;
