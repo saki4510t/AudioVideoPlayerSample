@@ -296,19 +296,21 @@ public class MediaMoviePlayer {
 							local_req = mRequest;
 							mRequest = REQ_NON;
 						}
-						switch (mState) {
-						case STATE_STOP:
-							local_isRunning = processStop(local_req);
-							break;
-						case STATE_PREPARED:
-							local_isRunning = processPrepared(local_req);
-							break;
-						case STATE_PLAYING:
-							local_isRunning = processPlaying(local_req);
-							break;
-						case STATE_PAUSED:
-							local_isRunning = processPaused(local_req);
-							break;
+						if (local_isRunning) {
+							switch (mState) {
+							case STATE_STOP:
+								local_isRunning = processStop(local_req);
+								break;
+							case STATE_PREPARED:
+								local_isRunning = processPrepared(local_req);
+								break;
+							case STATE_PLAYING:
+								local_isRunning = processPlaying(local_req);
+								break;
+							case STATE_PAUSED:
+								local_isRunning = processPaused(local_req);
+								break;
+							}
 						}
 					} catch (final InterruptedException e) {
 						break;
