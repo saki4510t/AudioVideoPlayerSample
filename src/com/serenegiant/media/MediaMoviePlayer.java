@@ -246,8 +246,8 @@ public class MediaMoviePlayer {
 	@SuppressWarnings("unused")
 	private long previousVideoPresentationTimeUs = -1;
 	private volatile int mVideoTrackIndex;
-	private boolean mVideoInputDone;
-	private boolean mVideoOutputDone;
+	private volatile boolean mVideoInputDone;
+	private volatile boolean mVideoOutputDone;
 	private int mVideoWidth, mVideoHeight;
 	private int mBitrate;
 	private float mFrameRate;
@@ -263,8 +263,8 @@ public class MediaMoviePlayer {
 	@SuppressWarnings("unused")
 	private long previousAudioPresentationTimeUs = -1;
 	private volatile int mAudioTrackIndex;
-	private boolean mAudioInputDone;
-	private boolean mAudioOutputDone;
+	private volatile boolean mAudioInputDone;
+	private volatile boolean mAudioOutputDone;
 	private int mAudioChannels;
 	private int mAudioSampleRate;
 	private int mAudioInputBufSize;
@@ -346,9 +346,9 @@ public class MediaMoviePlayer {
 				}
 			} // end of for
 			if (DEBUG) Log.v(TAG, "VideoTask:finished");
-			synchronized (mSync) {
+			synchronized (mVideoTask) {
 				mVideoInputDone = mVideoOutputDone = true;
-				mSync.notifyAll();
+				mVideoTask.notifyAll();
 			}
 		}
 	};
@@ -375,9 +375,9 @@ public class MediaMoviePlayer {
 				}
 			} // end of for
 			if (DEBUG) Log.v(TAG, "AudioTask:finished");
-			synchronized (mSync) {
+			synchronized (mAudioTask) {
 				mAudioInputDone = mAudioOutputDone = true;
-				mSync.notifyAll();
+				mAudioTask.notifyAll();
 			}
 		}
 	};
@@ -979,12 +979,28 @@ public class MediaMoviePlayer {
 	private final void handleStop() {
     	if (DEBUG) Log.v(TAG, "handleStop:");
     	synchronized (mVideoTask) {
-    		internal_stop_video();
-    		mVideoTrackIndex = -1;
+    		if (mVideoTrackIndex >= 0) {
+        		mVideoOutputDone = true;
+        		try {
+        			mVideoTask.wait();
+				} catch (final InterruptedException e) {
+				}
+        		internal_stop_video();
+        		mVideoTrackIndex = -1;
+    		}
+			mVideoOutputDone = mVideoInputDone = true;
     	}
     	synchronized (mAudioTask) {
-    		internal_stop_audio();
-    		mAudioTrackIndex = -1;
+    		if (mAudioTrackIndex >= 0) {
+        		mAudioOutputDone = true;
+        		try {
+        			mAudioTask.wait();
+				} catch (final InterruptedException e) {
+				}
+        		internal_stop_audio();
+        		mAudioTrackIndex = -1;
+    		}
+			mAudioOutputDone = mAudioInputDone = true;
     	}
     	if (mVideoMediaCodec != null) {
     		mVideoMediaCodec.stop();
@@ -1012,7 +1028,6 @@ public class MediaMoviePlayer {
 			mMetadata = null;
 		}
 		synchronized (mSync) {
-			mVideoOutputDone = mVideoInputDone = mAudioOutputDone = mAudioInputDone = true;
 			mState = STATE_STOP;
 		}
 		mCallback.onFinished();
