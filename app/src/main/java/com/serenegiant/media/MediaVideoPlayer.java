@@ -153,7 +153,7 @@ public class MediaVideoPlayer {
      * request pause playing<br>
      * this function is un-implemented yet
      */
-    public final void pasuse() {
+    public final void pause() {
     	if (DEBUG) Log.v(TAG, "pause:");
     	synchronized (mSync) {
     		mRequest = REQ_PAUSE;
@@ -189,7 +189,7 @@ public class MediaVideoPlayer {
     private static final int TIMEOUT_USEC = 10000;	// 10msec
 
     /*
-     * STATE_CLOSED => [preapre] => STATE_PREPARED [start]
+     * STATE_CLOSED => [prepare] => STATE_PREPARED [start]
      * 	=> STATE_PLAYING => [seek] => STATE_PLAYING
      * 		=> [pause] => STATE_PAUSED => [resume] => STATE_PLAYING
      * 		=> [stop] => STATE_CLOSED
