@@ -479,7 +479,7 @@ public class MediaVideoPlayer {
 		mMetadata.setDataSource(sourceFile);
 		updateMovieInfo();
 		// preparation for video playback
-		mVideoTrackIndex = internal_prepare_video(sourceFile);
+		mVideoTrackIndex = internalPrepareVideo(sourceFile);
 		if (mVideoTrackIndex < 0) {
 			throw new RuntimeException("No video track found in " + sourceFile);
 		}
@@ -493,15 +493,15 @@ public class MediaVideoPlayer {
 	 * @param sourceFile
 	 * @return first video track index, -1 if not found
 	 */
-	protected int internal_prepare_video(final String sourceFile) {
-		int trackindex = -1;
+	protected int internalPrepareVideo(final String sourceFile) {
+		int trackIndex = -1;
 		mVideoMediaExtractor = new MediaExtractor();
 		try {
 			mVideoMediaExtractor.setDataSource(sourceFile);
-			trackindex = selectTrack(mVideoMediaExtractor, "video/");
-			if (trackindex >= 0) {
-				mVideoMediaExtractor.selectTrack(trackindex);
-		        final MediaFormat format = mVideoMediaExtractor.getTrackFormat(trackindex);
+			trackIndex = selectTrack(mVideoMediaExtractor, "video/");
+			if (trackIndex >= 0) {
+				mVideoMediaExtractor.selectTrack(trackIndex);
+		        final MediaFormat format = mVideoMediaExtractor.getTrackFormat(trackIndex);
 	        	mVideoWidth = format.getInteger(MediaFormat.KEY_WIDTH);
 	        	mVideoHeight = format.getInteger(MediaFormat.KEY_HEIGHT);
 	        	mDuration = format.getLong(MediaFormat.KEY_DURATION);
@@ -512,7 +512,7 @@ public class MediaVideoPlayer {
 		} catch (final IOException e) {
 			Log.w(TAG, e);
 		}
-		return trackindex;
+		return trackIndex;
 	}
 
 	protected void updateMovieInfo() {
@@ -697,7 +697,7 @@ public class MediaVideoPlayer {
 				boolean doRender = false;
 				if (mVideoBufferInfo.size > 0) {
 					doRender = (mVideoBufferInfo.size != 0)
-						&& !internal_write_video(mVideoOutputBuffers[decoderStatus],
+						&& !internalWriteVideo(mVideoOutputBuffers[decoderStatus],
 							0, mVideoBufferInfo.size, mVideoBufferInfo.presentationTimeUs);
 					if (doRender) {
 						if (!frameCallback.onFrameAvailable(mVideoBufferInfo.presentationTimeUs))
@@ -723,7 +723,7 @@ public class MediaVideoPlayer {
 	 * @param presentationTimeUs
 	 * @return if return false, automatically asjust frame rate
 	 */
-	protected boolean internal_write_video(final ByteBuffer buffer,
+	protected boolean internalWriteVideo(final ByteBuffer buffer,
 		final int offset, final int size, final long presentationTimeUs) {
 
 //		if (DEBUG) Log.v(TAG, "internalWriteVideo");
@@ -761,7 +761,7 @@ public class MediaVideoPlayer {
 	private final void handleStop() {
     	if (DEBUG) Log.v(TAG, "handleStop:");
     	synchronized (mVideoTask) {
-    		internal_stop_video();
+    		internalStopVideo();
     		mVideoTrackIndex = -1;
     	}
     	if (mVideoMediaCodec != null) {
@@ -786,7 +786,7 @@ public class MediaVideoPlayer {
 		mCallback.onFinished();
 	}
 
-	protected void internal_stop_video() {
+	protected void internalStopVideo() {
 		if (DEBUG) Log.v(TAG, "internalStopVideo:");
 	}
 
