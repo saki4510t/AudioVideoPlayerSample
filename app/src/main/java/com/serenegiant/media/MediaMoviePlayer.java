@@ -282,36 +282,36 @@ public class MediaMoviePlayer {
 	private final Runnable mMoviePlayerTask = new Runnable() {
 		@Override
 		public final void run() {
-			boolean local_isRunning = false;
-			int local_req;
+			boolean localIsRunning = false;
+			int localReq;
 			try {
 		    	synchronized (mSync) {
-					local_isRunning = mIsRunning = true;
+					localIsRunning = mIsRunning = true;
 					mState = STATE_STOP;
 					mRequest = REQ_NON;
 					mRequestTime = -1;
 		    		mSync.notifyAll();
 		    	}
-				for ( ; local_isRunning ; ) {
+				for ( ; localIsRunning ; ) {
 					try {
 						synchronized (mSync) {
-							local_isRunning = mIsRunning;
-							local_req = mRequest;
+							localIsRunning = mIsRunning;
+							localReq = mRequest;
 							mRequest = REQ_NON;
 						}
-						if (local_isRunning) {
+						if (localIsRunning) {
 							switch (mState) {
 							case STATE_STOP:
-								local_isRunning = processStop(local_req);
+								localIsRunning = processStop(localReq);
 								break;
 							case STATE_PREPARED:
-								local_isRunning = processPrepared(local_req);
+								localIsRunning = processPrepared(localReq);
 								break;
 							case STATE_PLAYING:
-								local_isRunning = processPlaying(local_req);
+								localIsRunning = processPlaying(localReq);
 								break;
 							case STATE_PAUSED:
-								local_isRunning = processPaused(local_req);
+								localIsRunning = processPaused(localReq);
 								break;
 							}
 						}
@@ -323,7 +323,7 @@ public class MediaMoviePlayer {
 					}
 				} // for (;local_isRunning;)
 			} finally {
-				if (DEBUG) Log.v(TAG, "player task finished:local_isRunning=" + local_isRunning);
+				if (DEBUG) Log.v(TAG, "player task finished:local_isRunning=" + localIsRunning);
 				handleStop();
 			}
 		}
@@ -395,7 +395,7 @@ public class MediaMoviePlayer {
 	 * @throws IOException
 	 */
 	private final boolean processStop(final int req) throws InterruptedException, IOException {
-		boolean local_isRunning = true;
+		boolean localIsRunning = true;
 		switch (req) {
 		case REQ_PREPARE:
 			handlePrepare(mSourcePath);
@@ -405,7 +405,7 @@ public class MediaMoviePlayer {
 		case REQ_RESUME:
 			throw new IllegalStateException("invalid state:" + mState);
 		case REQ_QUIT:
-			local_isRunning = false;
+			localIsRunning = false;
 			break;
 //		case REQ_SEEK:
 //		case REQ_STOP:
@@ -416,9 +416,9 @@ public class MediaMoviePlayer {
 			break;
 		}
 		synchronized (mSync) {
-			local_isRunning &= mIsRunning;
+			localIsRunning &= mIsRunning;
 		}
-		return local_isRunning;
+		return localIsRunning;
 	}
 
 	/**
@@ -427,7 +427,7 @@ public class MediaMoviePlayer {
 	 * @throws InterruptedException
 	 */
 	private final boolean processPrepared(final int req) throws InterruptedException {
-		boolean local_isRunning = true;
+		boolean localIsRunning = true;
 		switch (req) {
 		case REQ_START:
 			handleStart();
@@ -439,7 +439,7 @@ public class MediaMoviePlayer {
 			handleStop();
 			break;
 		case REQ_QUIT:
-			local_isRunning = false;
+			localIsRunning = false;
 			break;
 //		case REQ_PREPARE:
 //		case REQ_SEEK:
@@ -450,9 +450,9 @@ public class MediaMoviePlayer {
 			break;
 		} // end of switch (req)
 		synchronized (mSync) {
-			local_isRunning &= mIsRunning;
+			localIsRunning &= mIsRunning;
 		}
-		return local_isRunning;
+		return localIsRunning;
 	}
 
 	/**
@@ -460,7 +460,7 @@ public class MediaMoviePlayer {
 	 * @return
 	 */
 	private final boolean processPlaying(final int req) {
-		boolean local_isRunning = true;
+		boolean localIsRunning = true;
 		switch (req) {
 		case REQ_PREPARE:
 		case REQ_START:
@@ -476,16 +476,16 @@ public class MediaMoviePlayer {
 			handlePause();
 			break;
 		case REQ_QUIT:
-			local_isRunning = false;
+			localIsRunning = false;
 			break;
 		default:
 			handleLoop(mCallback);
 			break;
 		} // end of switch (req)
 		synchronized (mSync) {
-			local_isRunning &= mIsRunning;
+			localIsRunning &= mIsRunning;
 		}
-		return local_isRunning;
+		return localIsRunning;
 	}
 
 	/**
@@ -528,32 +528,32 @@ public class MediaMoviePlayer {
 //
 //--------------------------------------------------------------------------------
 	/**
-	 * @param source_file
+	 * @param sourceFile
 	 * @throws IOException
 	 */
-	private final void handlePrepare(final String source_file) throws IOException {
-		if (DEBUG) Log.v(TAG, "handlePrepare:" + source_file);
+	private final void handlePrepare(final String sourceFile) throws IOException {
+		if (DEBUG) Log.v(TAG, "handlePrepare:" + sourceFile);
         synchronized (mSync) {
 			if (mState != STATE_STOP) {
 				throw new RuntimeException("invalid state:" + mState);
 			}
 		}
-        final File src = new File(source_file);
-        if (TextUtils.isEmpty(source_file) || !src.canRead()) {
-            throw new FileNotFoundException("Unable to read " + source_file);
+        final File src = new File(sourceFile);
+        if (TextUtils.isEmpty(sourceFile) || !src.canRead()) {
+            throw new FileNotFoundException("Unable to read " + sourceFile);
         }
         mVideoTrackIndex = mAudioTrackIndex = -1;
 		mMetadata = new MediaMetadataRetriever();
-		mMetadata.setDataSource(source_file);
+		mMetadata.setDataSource(sourceFile);
 		updateMovieInfo();
 		// preparation for video playback
-		mVideoTrackIndex = internalPrepareVideo(source_file);
+		mVideoTrackIndex = internalPrepareVideo(sourceFile);
 		// preparation for audio playback
 		if (mAudioEnabled)
-			mAudioTrackIndex = internalPrepareAudio(source_file);
+			mAudioTrackIndex = internalPrepareAudio(sourceFile);
 		mHasAudio = mAudioTrackIndex >= 0;
 		if ((mVideoTrackIndex < 0) && (mAudioTrackIndex < 0)) {
-			throw new RuntimeException("No video and audio track found in " + source_file);
+			throw new RuntimeException("No video and audio track found in " + sourceFile);
 		}
 		synchronized (mSync) {
 			mState = STATE_PREPARED;
@@ -703,7 +703,9 @@ public class MediaMoviePlayer {
 	 * @param trackIndex
 	 * @return
 	 */
-	protected MediaCodec internalStartVideo(final MediaExtractor media_extractor, final int trackIndex) {
+	protected MediaCodec internalStartVideo(
+		final MediaExtractor media_extractor, final int trackIndex) {
+
 		if (DEBUG) Log.v(TAG, "internalStartVideo:");
 		MediaCodec codec = null;
 		if (trackIndex >= 0) {
@@ -727,7 +729,9 @@ public class MediaMoviePlayer {
 	 * @param trackIndex
 	 * @return
 	 */
-	protected MediaCodec internalStartAudio(final MediaExtractor media_extractor, final int trackIndex) {
+	protected MediaCodec internalStartAudio(
+		final MediaExtractor media_extractor, final int trackIndex) {
+
 		if (DEBUG) Log.v(TAG, "internalStartAudio:");
 		MediaCodec codec = null;
 		if (trackIndex >= 0) {
@@ -775,6 +779,7 @@ public class MediaMoviePlayer {
 			try {
 				mSync.wait();
 			} catch (final InterruptedException e) {
+				// ignore
 			}
 		}
         if (mVideoInputDone && mVideoOutputDone && mAudioInputDone && mAudioOutputDone) {
@@ -790,7 +795,10 @@ public class MediaMoviePlayer {
 	 * @param presentationTimeUs
 	 * @param isAudio
 	 */
-	protected boolean internal_process_input(final MediaCodec codec, final MediaExtractor extractor, final ByteBuffer[] inputBuffers, final long presentationTimeUs, final boolean isAudio) {
+	protected boolean internalProcessInput(final MediaCodec codec,
+		final MediaExtractor extractor, final ByteBuffer[] inputBuffers,
+		final long presentationTimeUs, final boolean isAudio) {
+
 //		if (DEBUG) Log.v(TAG, "internalProcessInput:presentationTimeUs=" + presentationTimeUs);
 		boolean result = true;
 		while (mIsRunning) {
@@ -815,7 +823,7 @@ public class MediaMoviePlayer {
     		presentationTimeUs += previousVideoPresentationTimeUs - presentationTimeUs; // + EPS;
     	}
     	previousVideoPresentationTimeUs = presentationTimeUs; */
-        final boolean b = internal_process_input(mVideoMediaCodec, mVideoMediaExtractor, mVideoInputBuffers,
+        final boolean b = internalProcessInput(mVideoMediaCodec, mVideoMediaExtractor, mVideoInputBuffers,
         		presentationTimeUs, false);
         if (!b) {
         	if (DEBUG) Log.i(TAG, "video track input reached EOS");
@@ -882,7 +890,9 @@ public class MediaMoviePlayer {
 	 * @param presentationTimeUs
 	 * @return if return false, automatically adjust frame rate
 	 */
-	protected boolean internalWriteVideo(final ByteBuffer buffer, final int offset, final int size, final long presentationTimeUs) {
+	protected boolean internalWriteVideo(final ByteBuffer buffer,
+		final int offset, final int size, final long presentationTimeUs) {
+
 //		if (DEBUG) Log.v(TAG, "internalWriteVideo");
 		return false;
 	}
@@ -893,7 +903,7 @@ public class MediaMoviePlayer {
     		presentationTimeUs += previousAudioPresentationTimeUs - presentationTimeUs; //  + EPS;
     	}
     	previousAudioPresentationTimeUs = presentationTimeUs; */
-        final boolean b = internal_process_input(mAudioMediaCodec, mAudioMediaExtractor, mAudioInputBuffers,
+        final boolean b = internalProcessInput(mAudioMediaCodec, mAudioMediaExtractor, mAudioInputBuffers,
         		presentationTimeUs, true);
         if (!b) {
         	if (DEBUG) Log.i(TAG, "audio track input reached EOS");
@@ -954,7 +964,9 @@ public class MediaMoviePlayer {
 	 * @param presentationTimeUs
 	 * @return ignored
 	 */
-	protected boolean internalWriteAudio(final ByteBuffer buffer, final int offset, final int size, final long presentationTimeUs) {
+	protected boolean internalWriteAudio(final ByteBuffer buffer,
+		final int offset, final int size, final long presentationTimeUs) {
+
 //		if (DEBUG) Log.d(TAG, "internalWriteAudio");
         if (mAudioOutTempBuf.length < size) {
         	mAudioOutTempBuf = new byte[size];
@@ -974,7 +986,9 @@ public class MediaMoviePlayer {
 	 * @param presentationTimeUs
 	 * @return startTime
 	 */
-	protected long adjustPresentationTime(final Object sync, final long startTime, final long presentationTimeUs) {
+	protected long adjustPresentationTime(final Object sync,
+		final long startTime, final long presentationTimeUs) {
+
 		if (startTime > 0) {
 			for (long t = presentationTimeUs - (System.nanoTime() / 1000 - startTime);
 					t > 0; t = presentationTimeUs - (System.nanoTime() / 1000 - startTime)) {
