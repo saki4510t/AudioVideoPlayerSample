@@ -33,8 +33,8 @@ import com.serenegiant.media.MediaVideoPlayer;
 import com.serenegiant.widget.PlayerTextureView;
 
 import android.app.Activity;
-import android.app.Fragment;
 import android.content.Context;
+import android.support.v4.app.Fragment;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
