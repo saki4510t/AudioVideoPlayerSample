@@ -1,0 +1,33 @@
+apply plugin: 'com.android.application'
+
+android {
+	compileSdkVersion versionCompiler
+	buildToolsVersion versionBuildTool
+	compileOptions {
+		sourceCompatibility javaSourceCompatibility
+		targetCompatibility javaTargetCompatibility
+	}
+
+	defaultConfig {
+		applicationId "com.serenegiant.audiovideoplayersample"
+		minSdkVersion 18
+		targetSdkVersion versionTarget
+		versionCode versionCodeNum
+		versionName versionNameString
+	}
+
+	buildTypes {
+		debug {
+			debuggable true
+		}
+		release {
+			minifyEnabled false
+			proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+		}
+    }
+}
+
+dependencies {
+	api fileTree(include: ['*.jar'], dir: 'libs')
+	implementation "com.android.support:support-v4:${supportLibVersion}"
+}

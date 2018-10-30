@@ -26,3 +26,10 @@ proguard/
 *.log
 .classpath
 .project
+*.iml
+.idea/*.xml
+!.idea/gradle.xml
+.idea/libraries
+.idea/codeStyles
+.idea/inspectionProfiles
+.idea/caches

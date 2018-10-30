@@ -55,6 +55,7 @@ public class MediaVideoPlayer {
     			if (!mIsRunning)
     				mSync.wait();
 			} catch (final InterruptedException e) {
+				// ignore
 			}
     	}
     }
@@ -142,6 +143,7 @@ public class MediaVideoPlayer {
 	        	try {
 	    			mSync.wait(50);
 	    		} catch (final InterruptedException e) {
+	    			// ignore
 	    		}
     		}
     	}
@@ -152,7 +154,7 @@ public class MediaVideoPlayer {
      * this function is un-implemented yet
      */
     public final void pasuse() {
-    	if (DEBUG) Log.v(TAG, "pasuse:");
+    	if (DEBUG) Log.v(TAG, "pause:");
     	synchronized (mSync) {
     		mRequest = REQ_PAUSE;
     		mSync.notifyAll();
@@ -461,25 +463,25 @@ public class MediaVideoPlayer {
 	 * @param sourceFile
 	 * @throws IOException
 	 */
-	private final void handlePrepare(final String source_file) throws IOException {
+	private final void handlePrepare(final String sourceFile) throws IOException {
 		if (DEBUG) Log.v(TAG, "handlePrepare:");
         synchronized (mSync) {
 			if (mState != STATE_STOP) {
 				throw new RuntimeException("invalid state:" + mState);
 			}
 		}
-        final File src = new File(source_file);
-        if (TextUtils.isEmpty(source_file) || !src.canRead()) {
-            throw new FileNotFoundException("Unable to read " + source_file);
+        final File src = new File(sourceFile);
+        if (TextUtils.isEmpty(sourceFile) || !src.canRead()) {
+            throw new FileNotFoundException("Unable to read " + sourceFile);
         }
         mVideoTrackIndex = -1;
 		mMetadata = new MediaMetadataRetriever();
-		mMetadata.setDataSource(source_file);
+		mMetadata.setDataSource(sourceFile);
 		updateMovieInfo();
 		// preparation for video playback
-		mVideoTrackIndex = internal_prepare_video(source_file);
+		mVideoTrackIndex = internal_prepare_video(sourceFile);
 		if (mVideoTrackIndex < 0) {
-			throw new RuntimeException("No video track found in " + source_file);
+			throw new RuntimeException("No video track found in " + sourceFile);
 		}
 		synchronized (mSync) {
 			mState = STATE_PREPARED;
@@ -488,14 +490,14 @@ public class MediaVideoPlayer {
 	}
 
 	/**
-	 * @param src_file
+	 * @param sourceFile
 	 * @return first video track index, -1 if not found
 	 */
-	protected int internal_prepare_video(final String source_file) {
+	protected int internal_prepare_video(final String sourceFile) {
 		int trackindex = -1;
 		mVideoMediaExtractor = new MediaExtractor();
 		try {
-			mVideoMediaExtractor.setDataSource(source_file);
+			mVideoMediaExtractor.setDataSource(sourceFile);
 			trackindex = selectTrack(mVideoMediaExtractor, "video/");
 			if (trackindex >= 0) {
 				mVideoMediaExtractor.selectTrack(trackindex);
@@ -508,6 +510,7 @@ public class MediaVideoPlayer {
 					mVideoWidth, mVideoHeight, mDuration, mBitrate, mFrameRate, mRotation));
 			}
 		} catch (final IOException e) {
+			Log.w(TAG, e);
 		}
 		return trackindex;
 	}
@@ -552,7 +555,7 @@ public class MediaVideoPlayer {
 		mVideoInputDone = mVideoOutputDone = true;
 		Thread videoThread = null;
 		if (mVideoTrackIndex >= 0) {
-			final MediaCodec codec = internal_start_video(mVideoMediaExtractor, mVideoTrackIndex);
+			final MediaCodec codec = internalStartVideo(mVideoMediaExtractor, mVideoTrackIndex);
 			if (codec != null) {
 				mVideoMediaCodec = codec;
 		        mVideoBufferInfo = new MediaCodec.BufferInfo();
@@ -570,16 +573,21 @@ public class MediaVideoPlayer {
 	 * @param trackIndex
 	 * @return
 	 */
-	protected MediaCodec internal_start_video(final MediaExtractor media_extractor, final int trackIndex) {
-		if (DEBUG) Log.v(TAG, "internal_start_video:");
+	protected MediaCodec internalStartVideo(final MediaExtractor media_extractor, final int trackIndex) {
+		if (DEBUG) Log.v(TAG, "internalStartVideo:");
 		MediaCodec codec = null;
 		if (trackIndex >= 0) {
 	        final MediaFormat format = media_extractor.getTrackFormat(trackIndex);
 	        final String mime = format.getString(MediaFormat.KEY_MIME);
-	        codec = MediaCodec.createDecoderByType(mime);
-	        codec.configure(format, mOutputSurface, null, 0);
-	        codec.start();
-	    	if (DEBUG) Log.v(TAG, "internal_start_video:codec started");
+			try {
+				codec = MediaCodec.createDecoderByType(mime);
+				codec.configure(format, mOutputSurface, null, 0);
+		        codec.start();
+			} catch (final IOException e) {
+				codec = null;
+				Log.w(TAG, e);
+			}
+	    	if (DEBUG) Log.v(TAG, "internalStartVideo:codec started");
 		}
 		return codec;
 	}
@@ -602,6 +610,7 @@ public class MediaVideoPlayer {
 			try {
 				mSync.wait();
 			} catch (final InterruptedException e) {
+				// ignore
 			}
 		}
         if (mVideoInputDone && mVideoOutputDone) {
@@ -617,8 +626,12 @@ public class MediaVideoPlayer {
 	 * @param presentationTimeUs
 	 * @param isAudio
 	 */
-	protected boolean internal_process_input(final MediaCodec codec, final MediaExtractor extractor, final ByteBuffer[] inputBuffers, final long presentationTimeUs, final boolean isAudio) {
-//		if (DEBUG) Log.v(TAG, "internal_process_input:presentationTimeUs=" + presentationTimeUs);
+	protected boolean internalProcessInput(final MediaCodec codec,
+		final MediaExtractor extractor,
+		final ByteBuffer[] inputBuffers,
+		final long presentationTimeUs, final boolean isAudio) {
+
+//		if (DEBUG) Log.v(TAG, "internalProcessInput:presentationTimeUs=" + presentationTimeUs);
 		boolean result = true;
 		while (mIsRunning) {
             final int inputBufIndex = codec.dequeueInputBuffer(TIMEOUT_USEC);
@@ -642,7 +655,7 @@ public class MediaVideoPlayer {
     		presentationTimeUs += previousVideoPresentationTimeUs - presentationTimeUs; //  + EPS;
     	}
     	previousVideoPresentationTimeUs = presentationTimeUs;
-        final boolean b = internal_process_input(mVideoMediaCodec, mVideoMediaExtractor, mVideoInputBuffers,
+        final boolean b = internalProcessInput(mVideoMediaCodec, mVideoMediaExtractor, mVideoInputBuffers,
         		presentationTimeUs, false);
         if (!b) {
         	if (DEBUG) Log.i(TAG, "video track input reached EOS");
@@ -688,7 +701,7 @@ public class MediaVideoPlayer {
 							0, mVideoBufferInfo.size, mVideoBufferInfo.presentationTimeUs);
 					if (doRender) {
 						if (!frameCallback.onFrameAvailable(mVideoBufferInfo.presentationTimeUs))
-							mVideoStartTime = adjustPresentationTime(mVideoSync, mVideoStartTime, mVideoBufferInfo.presentationTimeUs);
+							mVideoStartTime = adjustPresentationTime(mVideoStartTime, mVideoBufferInfo.presentationTimeUs);
 					}
 				}
 				mVideoMediaCodec.releaseOutputBuffer(decoderStatus, doRender);
@@ -708,28 +721,32 @@ public class MediaVideoPlayer {
 	 * @param offset
 	 * @param size
 	 * @param presentationTimeUs
-	 * @param if return false, automatically asjust frame rate
+	 * @return if return false, automatically asjust frame rate
 	 */
-	protected boolean internal_write_video(final ByteBuffer buffer, final int offset, final int size, final long presentationTimeUs) {
-//		if (DEBUG) Log.v(TAG, "internal_write_video");
+	protected boolean internal_write_video(final ByteBuffer buffer,
+		final int offset, final int size, final long presentationTimeUs) {
+
+//		if (DEBUG) Log.v(TAG, "internalWriteVideo");
 		return false;
 	}
 
 	/**
 	 * adjusting frame rate
-	 * @param sync
 	 * @param startTime
 	 * @param presentationTimeUs
 	 * @return startTime
 	 */
-	protected long adjustPresentationTime(final Object sync, final long startTime, final long presentationTimeUs) {
+	protected long adjustPresentationTime(
+		final long startTime, final long presentationTimeUs) {
+
 		if (startTime > 0) {
 			for (long t = presentationTimeUs - (System.nanoTime() / 1000 - startTime);
 					t > 0; t = presentationTimeUs - (System.nanoTime() / 1000 - startTime)) {
-				synchronized (sync) {
+				synchronized (mVideoSync) {
 					try {
-						sync.wait(t / 1000, (int)((t % 1000) * 1000));
+						mVideoSync.wait(t / 1000, (int)((t % 1000) * 1000));
 					} catch (final InterruptedException e) {
+						// ignore
 					}
 					if ((mState == REQ_STOP) || (mState == REQ_QUIT))
 						break;
@@ -770,7 +787,7 @@ public class MediaVideoPlayer {
 	}
 
 	protected void internal_stop_video() {
-		if (DEBUG) Log.v(TAG, "internal_stop_video:");
+		if (DEBUG) Log.v(TAG, "internalStopVideo:");
 	}
 
 	private final void handlePause() {
