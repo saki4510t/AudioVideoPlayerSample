@@ -28,9 +28,9 @@ ext {
 	versionCompiler = 30
 	versionTarget = 27
 
-	supportLibVersion = '28.0.0'  // variable that can be referenced to keep support libs consistent
-	commonLibVersion = '7.19.0'
+	androidXAppCompatVersion = '1.3.1'
+	androidXMateril = '1.4.0'
 
-	versionCodeNum = 52
-	versionNameString = '3.5.1'
+	versionCodeNum = 53
+	versionNameString = '3.6.0'
 }
